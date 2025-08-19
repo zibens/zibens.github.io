@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <meta name="author" content="Zibens">
+
+
+
+
+
+<title>Lab2 The TCP receiver | Hexo</title>
+
+
+
+    <link rel="icon" href="/blogscreen.ico">
+
+
+
+
+    <!-- stylesheets list from _config.yml -->
+    
+    <link rel="stylesheet" href="/css/style.css">
+    
+
+
+
+    <!-- scripts list from _config.yml -->
+    
+    <script src="/js/script.js"></script>
+    
+    <script src="/js/tocbot.min.js"></script>
+    
+
+
+
+    
+    
+        
+    
+
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <script>
+        // this function is used to check current theme before page loaded.
+        (() => {
+            const pagebody = document.getElementsByTagName('body')[0]
+
+            function setTheme(status) {
+
+                if (status === 'dark') {
+                    window.sessionStorage.theme = 'dark'
+                    pagebody.classList.add('dark-theme');
+
+                } else if (status === 'light') {
+                    window.sessionStorage.theme = 'light'
+                    pagebody.classList.remove('dark-theme');
+                }
+            };
+
+            setTheme(window.sessionStorage.theme)
+        })();
+    </script>
+
+    <div class="wrapper">
+        <header>
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-header header-logo"><a href="/">Welcome to My Blog</a></div>
+            <div class="menu navbar-right">
+                
+                <a class="menu-item" href="/archives">Posts</a>
+                
+                <a class="menu-item" href="/category">Categories</a>
+                
+                <a class="menu-item" href="/tag">Tags</a>
+                
+                <a class="menu-item" href="/about">About</a>
+                
+                
+                <input id="switch_default" type="checkbox" class="switch_default">
+                <label for="switch_default" class="toggleBtn"></label>
+            </div>
+        </div>
+    </nav>
+
+    
+    <nav class="navbar-mobile" id="nav-mobile">
+        <div class="container">
+            <div class="navbar-header">
+                <div>
+                    <a href="/">Welcome to My Blog</a><a id="mobile-toggle-theme">·&nbsp;Light</a>
+                </div>
+                <div class="menu-toggle" onclick="mobileBtn()">
+                    <svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="currentColor" d="M4.5 17.27q-.213 0-.356-.145T4 16.768t.144-.356t.356-.143h15q.213 0 .356.144q.144.144.144.357t-.144.356t-.356.143zm0-4.77q-.213 0-.356-.144T4 11.999t.144-.356t.356-.143h15q.213 0 .356.144t.144.357t-.144.356t-.356.143zm0-4.77q-.213 0-.356-.143Q4 7.443 4 7.23t.144-.356t.356-.143h15q.213 0 .356.144T20 7.23t-.144.356t-.356.144z"/></svg>
+                    <svg class="close-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><!-- Icon from Material Symbols Light by Google - https://github.com/google/material-design-icons/blob/master/LICENSE --><path fill="currentColor" d="m12 12.708l-5.246 5.246q-.14.14-.344.15t-.364-.15t-.16-.354t.16-.354L11.292 12L6.046 6.754q-.14-.14-.15-.344t.15-.364t.354-.16t.354.16L12 11.292l5.246-5.246q.14-.14.345-.15q.203-.01.363.15t.16.354t-.16.354L12.708 12l5.246 5.246q.14.14.15.345q.01.203-.15.363t-.354.16t-.354-.16z"/></svg>
+                </div>
+            </div>
+            <div class="menu" id="mobile-menu">
+                
+                <a class="menu-item" href="/archives">Posts</a>
+                
+                <a class="menu-item" href="/category">Categories</a>
+                
+                <a class="menu-item" href="/tag">Tags</a>
+                
+                <a class="menu-item" href="/about">About</a>
+                
+            </div>
+        </div>
+    </nav>
+
+</header>
+<script>
+    var mobileBtn = function f() {
+        var toggleMenu = document.getElementsByClassName("menu-toggle")[0];
+        var mobileMenu = document.getElementById("mobile-menu");
+        if (toggleMenu.classList.contains("active")) {
+            toggleMenu.classList.remove("active")
+            mobileMenu.classList.remove("active")
+        } else {
+            toggleMenu.classList.add("active")
+            mobileMenu.classList.add("active")
+        }
+    }
+</script>
+            <div class="main">
+                <div class="container">
+    
+    
+        <div class="post-toc">
+    <div class="tocbot-list">
+    </div>
+    <div class="tocbot-list-menu">
+        <a class="tocbot-toc-expand" onclick="expand_toc()">Expand all</a>
+        <a onclick="go_top()">Back to top</a>
+        <a onclick="go_bottom()">Go to bottom</a>
+    </div>
+</div>
+
+<script>
+    var tocbot_timer;
+    var DEPTH_MAX = 6; // 为 6 时展开所有
+    var tocbot_default_config = {
+        tocSelector: '.tocbot-list',
+        contentSelector: '.post-content',
+        headingSelector: 'h1, h2, h3, h4, h5',
+        orderedList: false,
+        scrollSmooth: true,
+        onClick: extend_click,
+    };
+
+    function extend_click() {
+        clearTimeout(tocbot_timer);
+        tocbot_timer = setTimeout(function() {
+            tocbot.refresh(obj_merge(tocbot_default_config, {
+                hasInnerContainers: true
+            }));
+        }, 420); // 这个值是由 tocbot 源码里定义的 scrollSmoothDuration 得来的
+    }
+
+    document.ready(function() {
+        tocbot.init(obj_merge(tocbot_default_config, {
+            collapseDepth: 1
+        }));
+    });
+
+    function expand_toc() {
+        var b = document.querySelector('.tocbot-toc-expand');
+        var expanded = b.getAttribute('data-expanded');
+        expanded ? b.removeAttribute('data-expanded') : b.setAttribute('data-expanded', true);
+        tocbot.refresh(obj_merge(tocbot_default_config, {
+            collapseDepth: expanded ? 1 : DEPTH_MAX
+        }));
+        b.innerText = expanded ? 'Expand all' : 'Collapse all';
+    }
+
+    function go_top() {
+        window.scrollTo(0, 0);
+    }
+
+    function go_bottom() {
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function obj_merge(target, source) {
+        for (var item in source) {
+            if (source.hasOwnProperty(item)) {
+                target[item] = source[item];
+            }
+        }
+        return target;
+    }
+</script>
+    
+
+    
+    <article class="post-wrap">
+        <header class="post-header">
+            <h1 class="post-title">Lab2 The TCP receiver</h1>
+            
+                <div class="post-meta">
+                    
+                        Author: <a itemprop="author" rel="author" href="/">Zibens</a>
+                    
+
+                    
+                        <span class="post-time">
+                        Date: <a href="#">八月 12, 2025&nbsp;&nbsp;23:07:42</a>
+                        </span>
+                    
+                    
+                        <span class="post-category">
+                    Category:
+                            
+                                <a href="/categories/CS144/">CS144</a>
+                            
+                        </span>
+                    
+                </div>
+            
+        </header>
+
+        <div class="post-content">
+            <h1 id="Lab2-The-TCP-receiver"><a href="#Lab2-The-TCP-receiver" class="headerlink" title="Lab2 The TCP receiver"></a>Lab2 The TCP receiver</h1><p>首先需要先理解几个TCP的核心概念</p>
+<ol>
+<li><p><strong>序列号(Sequence Numbers - seqno)</strong> : TCP将发送的数据看作一个连续的字节流。流中的每一个字节都有一个唯一的32位无符号整数作为序列号。这使得接收方能够准确地识别出每一个数据段（segment）在整个数据流中的位置。</p>
+</li>
+<li><p><strong>绝对序列号 (Absolute Sequence Number)</strong>: 这是在整个TCP连接生命周期内，一个字节的“绝对”索引。它是一个64位的无符号整数，从0开始，一直增长到整个数据流的末尾。因为32位的序列号会回绕（wrap around），所以引入一个更大的绝对序列号来简化内部逻辑，避免处理回绕的复杂性。</p>
+</li>
+<li><p><strong>SYN和FIN标志位</strong></p>
+<ul>
+<li><strong>SYN</strong> ： 这个标志位用于建立连接。SYN报文本身会消耗一个序列号。当接收方收到一个SYN时，就意味着一个新的TCP连接开始了，并且后续的数据序列号将从这个SYN的序列号之后开始计算。</li>
+<li><strong>FIN</strong> ： 这个标志位用于关闭连接。与SYN类似，FIN报文本身也会消耗一个序列号。收到FIN意味着对方已经发送完了所有数据。</li>
+</ul>
+</li>
+<li><p><strong>确认号</strong> ：这是接收方用来告知发送方“我已经成功接收到哪个字节之前的所有数据了”的机制。ackno的值是接收方期望收到的<strong>下一个字节</strong>的序列号。例如，如果接收方已经收到了从0到99的所有字节，那么它发送的ackno就会是100。</p>
+</li>
+<li><p><strong>窗口大小</strong> ：  接收方通过ackno告诉发送方自己已经收到了什么，同时通过window size告诉发送方自己还有多少可用的缓冲区空间来接收新的数据。窗口大小通常指的是从ackno开始，接收方还能接收的字节数。</p>
+</li>
+</ol>
+<h2 id="Checkpoint1-Translating-between-64-bit-indexes-and-32-bit-seqnos"><a href="#Checkpoint1-Translating-between-64-bit-indexes-and-32-bit-seqnos" class="headerlink" title="Checkpoint1 : Translating between 64-bit indexes and 32-bit seqnos"></a>Checkpoint1 : Translating between 64-bit indexes and 32-bit seqnos</h2><p>这个任务是： <strong>在两种不同的“计数”方式之间进行转换。</strong></p>
+<img src="/2025/08/12/test2/1.png" class="" width="1">
+
+<img src="/2025/08/12/test2/1.png" class="" title="这是图片的描述文字">
+
+<p>对于这个图可以得到一个公式 ：<code>(zero_point + absolute_seqno) % (1&lt;&lt;32) = seqno</code></p>
+<p>我们需要编写两个转换函数</p>
+<p><code>wrap(uint64_t n , Wrap32 zero_point)</code></p>
+<p>输入一个64位的绝对序列号 ，转换为32为序列号</p>
+<p><code>unwrap(Wrap32 zero_point , uint64_t checkpoint) const</code></p>
+<p>32位序列号转换回64位绝对序列号</p>
+<p><code>cmake --build build --target check_lab2</code><br>这个命令用来检测这两个函数写的是否正确</p>
+<blockquote>
+<p>wrap(uint64_t n , Wrap32 zero_point)</p>
+</blockquote>
+<p>64位的<code>absolute seqno</code> 转化成 32位的<code>seqno</code> 解是唯一的。只需要让<code>absolute_seqno + zero_point</code>即可，<strong>但是注意</strong> ， 这里的absolute_seqno是64位的 ，所以需要先转为32位。 但是实际上，uint32_t类型会自动截断高32位，就相当于求余了 ，但在这里我仍然使用了转换并求余的写法。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Wrap32 <span class="title function_">Wrap32::wrap</span><span class="params">( <span class="type">uint64_t</span> n, Wrap32 zero_point )</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="comment">// Your code here.</span></span><br><span class="line">  <span class="type">uint32_t</span> ans = (static_cast&lt;<span class="type">uint32_t</span>&gt;(n) + zero_point.raw_value_) % (<span class="number">1UL</span> &lt;&lt; <span class="number">32</span>);</span><br><span class="line">  <span class="keyword">return</span> Wrap32 (ans);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<blockquote>
+<p>unwrap(Wrap zero_point , uint64_t checkpoint)</p>
+</blockquote>
+<p>文档中提到 ，有大量的64位整数转成32位整数后的值都是一样的 ，所以这里给了一个checkpoint ,要求选择距离checkpoint最近的64位整数。</p>
+<p>我们可以知道 $(absoluteseqno + zeropoint ) \quad mod \quad (1&lt;&lt;32) &#x3D; seqno$</p>
+<p>于是可以反推出 &#x3D;&gt; $ absoluteseqno &#x3D; k*(1&lt;&lt;32)*seqno - zeropoint$</p>
+<p>现在已知 <code>seqno</code> <code>zeropoint</code> 那么 由于k的取值，<code>absoluteseqno</code>的解集就会有很多 ，所以需要找到一个距离<code>checkpoint</code>最近的解</p>
+<p>首先能想到的最暴力的办法显然是O(n)的枚举k ， 复杂度爆炸！</p>
+<p>那么不妨再算出<code>seqno - zeropoint</code>之后 ，直接把 <code>checkpoint</code>的高32位拿过来 ，此时的值一定会非常接近checkpoint</p>
+<p>但是 ，假如checkpoint是:<code>100000...1(高32位) 11111....111(低32位)</code></p>
+<p>我们算出来的这个答案是:<code>100000...1(高32位) 000000....001(低32位)</code></p>
+<p>此时肯定要再加上一个(1&lt;&lt;32)更接近 ， 同理 ， 还有一种情况就是减去(1&lt;&lt;32)更接近。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">uint64_t</span> <span class="title">Wrap32::unwrap</span><span class="params">( Wrap32 zero_point, <span class="type">uint64_t</span> checkpoint )</span> <span class="type">const</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="comment">// Your code here.</span></span><br><span class="line">  <span class="type">uint64_t</span> pre = checkpoint &amp; <span class="number">0xFFFFFFFF00000000</span>; <span class="comment">//取出checkpoint的高32位</span></span><br><span class="line">  </span><br><span class="line">  <span class="type">uint64_t</span> ans = <span class="number">0</span>;</span><br><span class="line">    <span class="comment">//这里的判断是因为有可能seqno &lt; zero_point</span></span><br><span class="line">  <span class="keyword">if</span> (<span class="keyword">this</span>-&gt;raw_value_ &gt;= zero_point.raw_value_) &#123; </span><br><span class="line">    ans = (<span class="built_in">static_cast</span>&lt;<span class="type">uint64_t</span>&gt;(<span class="keyword">this</span>-&gt;raw_value_) - <span class="built_in">static_cast</span>&lt;<span class="type">uint64_t</span>&gt;(zero_point.raw_value_));</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    ans = (<span class="built_in">static_cast</span>&lt;<span class="type">uint64_t</span>&gt;(<span class="keyword">this</span>-&gt;raw_value_) + (<span class="number">1UL</span> &lt;&lt; <span class="number">32</span>) - <span class="built_in">static_cast</span>&lt;<span class="type">uint64_t</span>&gt;(zero_point.raw_value_));</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  <span class="type">uint64_t</span> ans2 = pre + ans;</span><br><span class="line">    <span class="comment">//这里是有可能ans2会小于 (1&lt;&lt;32) ， 此时就不需要减一个(1&lt;&lt;32)</span></span><br><span class="line">  <span class="type">uint64_t</span> ans1 = ans2 &gt; (<span class="number">1UL</span> &lt;&lt; <span class="number">32</span>) ? ans2 - (<span class="number">1UL</span> &lt;&lt; <span class="number">32</span>) : ans2;</span><br><span class="line">    <span class="comment">//这里是有可能ans2+(1&lt;&lt;32) 会大于等于(1&lt;&lt;64) ， 此时不能加上一个(1&lt;&lt;32)</span></span><br><span class="line">  <span class="type">uint64_t</span> ans3 = ans2 &lt; (<span class="number">0xFFFF&#x27;FFFF&#x27;FFFF&#x27;FFFF</span>) - (<span class="number">1UL</span> &lt;&lt; <span class="number">32</span>) ? ans2 + (<span class="number">1UL</span> &lt;&lt; <span class="number">32</span>) : ans2;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span>(checkpoint - ans1 &lt;(<span class="number">1UL</span> &lt;&lt; <span class="number">31</span>))&#123;</span><br><span class="line">    <span class="keyword">return</span> ans1;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">else</span> <span class="keyword">if</span>(ans3 - checkpoint &lt;(<span class="number">1UL</span> &lt;&lt;<span class="number">31</span>))&#123;</span><br><span class="line">    <span class="keyword">return</span> ans3;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">else</span> <span class="keyword">return</span> ans2;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="Implementing-the-TCP-receiver"><a href="#Implementing-the-TCP-receiver" class="headerlink" title="Implementing the TCP receiver"></a>Implementing the TCP receiver</h2><blockquote>
+<p>tcp_sender_message</p>
+</blockquote>
+<ul>
+<li>一个序列号， 是报文段的起始序列号。</li>
+<li>SYN是一个布尔值， 当它为true时， 它本身<strong>消耗</strong>一个序列号，并且它的seqno会被接收方记录为连接的<strong>初始序列号</strong>(ISN)</li>
+<li><code>payload</code>数据负载 ，报文段中携带的实际应用数据。</li>
+<li><code>FIN</code> 结束标志 ， 本身消耗一个序列号</li>
+<li><code>RST</code>重置标志 ，用于异常中止连接</li>
+</ul>
+<blockquote>
+<p>tcp_receiver_message</p>
+</blockquote>
+<ul>
+<li><code>std::optional&lt;Wrap32&gt; ackno&#123;&#125;</code>确认号，代表TCP接收方期望下一次从发送方收到的序列号</li>
+<li><code>uint16_t window_size &#123;&#125;</code>窗口大小，告知发送方，接收方当前还有多少可用的缓冲区间来接收数据</li>
+<li><code>bool RST &#123;&#125;;</code>true标识接收方遇到错误，强制断开</li>
+</ul>
+<blockquote>
+<p>TCPReceiver</p>
+</blockquote>
+<p><code>TCPReceiver</code>类，用来接收来自发送方的数据段 ， 将这些数据正确的重组成一个字节流，并反馈给发送方</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Reassembler reassember_ ; <span class="comment">//这是之前实验做过的重排器</span></span><br><span class="line">Wrap32 zero_point_; <span class="comment">//这是本次连接的初始序列号(ISN)</span></span><br><span class="line"><span class="built_in">std</span>::optional&lt;Wrap32&gt; ack_; <span class="comment">//存储了确认号。</span></span><br></pre></td></tr></table></figure>
+
+
+
+<blockquote>
+<p>TCPReceiver::receive( TCPSenderMessage message )</p>
+</blockquote>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">TCPReceiver::receive</span><span class="params">( TCPSenderMessage message )</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="comment">// Your code here.</span></span><br><span class="line">  <span class="keyword">if</span>(message.RST)&#123;</span><br><span class="line">    reader().set_error();</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span>(message.SYN)&#123;</span><br><span class="line">    zero_point_ = Wrap32(message.seqno);</span><br><span class="line">    ack_.emplace(message.seqno);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span>(ack_.has_value())&#123;</span><br><span class="line">    <span class="type">uint64_t</span> check_point = writer().bytes_pushed() + <span class="number">1</span>;</span><br><span class="line">    <span class="type">uint64_t</span> first_idx = Wrap32(message.SYN ? message.seqno+<span class="number">1</span> : message.seqno).unwrap(zero_point_ ,check_point)<span class="number">-1</span>;</span><br><span class="line"></span><br><span class="line">    reassembler_.insert(first_idx , <span class="built_in">std</span>::move(message.payload) , message.FIN);</span><br><span class="line"></span><br><span class="line">    ack_ = ack_-&gt;wrap(writer().bytes_pushed()+<span class="number">1</span>+writer().is_closed() , zero_point_);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  </span><br><span class="line">  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>首先 ，当<code>message.RST</code>，也就是异常，中止连接时，赶紧告知应用程序连接停止了 ，所以要立即关闭reader</p>
+<p>如果报文段的SYN位打开，可以将<code>zero_point</code>也就是ISN ，置于message的序列号位置 , 并且暂时将ack置为序列号位置</p>
+<p><strong>只有当SYN置为1时，才可以开始传递信息(第一次握手)</strong><br>首先获得了下一个期望收到的字节的绝对序列号。<br>然后获得这次报文段的<code>first_idx</code>，给重排器使用。</p>
+<blockquote>
+<p>TCPReceiverMessage TCPReceiver::send()</p>
+</blockquote>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">TCPReceiverMessage <span class="title function_">TCPReceiver::send</span><span class="params">()</span> <span class="type">const</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="comment">// Your code here.</span></span><br><span class="line">  <span class="keyword">return</span> &#123;ack_ , static_cast&lt;<span class="type">uint16_t</span>&gt;(min(reassembler_.writer().available_capacity() , static_cast&lt;<span class="type">uint64_t</span>&gt;(UINT16_MAX))) , reader().has_error()&#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>更新序列号</p>
+<img src="/2025/08/12/test2/2.png" class="" title="这是图片的描述文字">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        </div>
+
+        
+            <section class="post-copyright">
+                
+                    <p class="copyright-item">
+                        <span>Author:</span>
+                        <span>Zibens</span>
+                    </p>
+                
+                
+                    <p class="copyright-item">
+                        <span>Permalink:</span>
+                        <span><a href="https://zibens.github.io/2025/08/12/test2/">https://zibens.github.io/2025/08/12/test2/</a></span>
+                    </p>
+                
+                
+                    <p class="copyright-item">
+                        <span>License:</span>
+                        <span>Copyright (c) 2019 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc/4.0/">CC-BY-NC-4.0</a> LICENSE</span>
+                    </p>
+                
+                
+                     <p class="copyright-item">
+                         <span>Slogan:</span>
+                         <span>Do you believe in <strong>DESTINY</strong>?</span>
+                     </p>
+                
+
+            </section>
+        
+        <section class="post-tags">
+            <div>
+                <span>Tag(s):</span>
+                <span class="tag">
+                    
+                    
+                        <a href="/tag/CS144/"># CS144</a>
+                    
+                        
+                </span>
+            </div>
+            <div>
+                <a href="javascript:window.history.back();">back</a>
+                <span>· </span>
+                <a href="/">home</a>
+            </div>
+        </section>
+        <section class="post-nav">
+            
+                <a class="prev" rel="prev" href="/2025/08/19/xv6CODE1/">Xv6源码解读 ——xv6操作系统的启动</a>
+            
+            
+            <a class="next" rel="next" href="/2025/08/08/hello-world/">Hello World</a>
+            
+        </section>
+
+
+    </article>
+</div>
+
+            </div>
+            <footer id="footer" class="footer">
+    <div class="copyright">
+        <span>© Zibens | Powered by <a href="https://hexo.io" target="_blank">Hexo</a> & <a href="https://github.com/Siricee/hexo-theme-Chic" target="_blank">Chic</a></span>
+    </div>
+</footer>
+
+    </div>
+</body>
+
+</html>
